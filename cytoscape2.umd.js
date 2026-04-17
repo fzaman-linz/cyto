@@ -11111,7 +11111,6 @@
   var position = elesfn$c;
 
   var fn$3, elesfn$b;
-  var BBOX_MARGIN_ERROR = 2;
   fn$3 = elesfn$b = {};
   elesfn$b.renderedBoundingBox = function (options) {
     var bb = this.boundingBox(options);
@@ -11372,8 +11371,7 @@
       var borderWidth = ele.pstyle('text-border-width').pfValue;
       var halfBorderWidth = borderWidth / 2;
       var padding = ele.pstyle('text-background-padding').pfValue;
-      var marginOfErrorX = BBOX_MARGIN_ERROR; // expand to work around browser dimension inaccuracies
-      var marginOfErrorY = BBOX_MARGIN_ERROR; // expand to work around browser dimension inaccuracies
+      var marginOfError = 2; // expand to work around browser dimension inaccuracies
 
       var lh = labelHeight;
       var lw = labelWidth;
@@ -11417,10 +11415,10 @@
       }
 
       // shift by margin and expand by outline and border
-      var leftPad = marginX - Math.max(outlineWidth, halfBorderWidth) - padding - marginOfErrorX;
-      var rightPad = marginX + Math.max(outlineWidth, halfBorderWidth) + padding + marginOfErrorX;
-      var topPad = marginY - Math.max(outlineWidth, halfBorderWidth) - padding - marginOfErrorY;
-      var botPad = marginY + Math.max(outlineWidth, halfBorderWidth) + padding + marginOfErrorY;
+      var leftPad = marginX - Math.max(outlineWidth, halfBorderWidth) - padding - marginOfError;
+      var rightPad = marginX + Math.max(outlineWidth, halfBorderWidth) + padding + marginOfError;
+      var topPad = marginY - Math.max(outlineWidth, halfBorderWidth) - padding - marginOfError;
+      var botPad = marginY + Math.max(outlineWidth, halfBorderWidth) + padding + marginOfError;
       lx1 += leftPad;
       lx2 += rightPad;
       ly1 += topPad;
@@ -25067,19 +25065,18 @@ var printLayoutInfo;
     setPrefixedProperty(_p.rscratch, 'prefixedLabelDimsKey', prefix, cacheKey);
     var labelDims = this.calculateLabelDimensions(ele, text);
     var lineHeight = ele.pstyle('line-height').pfValue;
-    var size = ele.pstyle('font-size').pfValue;
     var textWrap = ele.pstyle('text-wrap').strValue;
     var lines = getPrefixedProperty(_p.rscratch, 'labelWrapCachedLines', prefix) || [];
     var numLines = textWrap !== 'wrap' ? 1 : Math.max(lines.length, 1);
-    var labelLineHeight = size * lineHeight;
+    var normPerLineHeight = labelDims.height / numLines;
+    var labelLineHeight = normPerLineHeight * lineHeight;
     var width = labelDims.width;
-    var height = labelDims.height + (numLines - 1) * (lineHeight - 1) * size;
+    var height = labelDims.height + (numLines - 1) * (lineHeight - 1) * normPerLineHeight;
     setPrefixedProperty(_p.rstyle, 'labelWidth', prefix, width);
     setPrefixedProperty(_p.rscratch, 'labelWidth', prefix, width);
     setPrefixedProperty(_p.rstyle, 'labelHeight', prefix, height);
     setPrefixedProperty(_p.rscratch, 'labelHeight', prefix, height);
     setPrefixedProperty(_p.rscratch, 'labelLineHeight', prefix, labelLineHeight);
-    setPrefixedProperty(_p.rscratch, 'labelActualDescent', prefix, labelDims.labelActualDescent);
   };
   BRp$9.getLabelText = function (ele, prefix) {
     var _p = ele._private;
@@ -25248,31 +25245,19 @@ var printLayoutInfo;
     var width = 0;
     var height = 0;
     var lines = text.split('\n');
-    var lineCount = lines.length;
-    var labelActualDescent = 0;
-    var labelActualAscent = 0;
-    for (var i = 0; i < lineCount; i++) {
+    for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
       var metrics = c2d.measureText(line);
       var w = Math.ceil(metrics.width);
       var h = size;
-      if (i === 0) {
-        labelActualAscent = Number.isFinite(metrics.actualBoundingBoxAscent) ? metrics.actualBoundingBoxAscent : size;
-      }
-      if (i === lineCount - 1) {
-        labelActualDescent = Number.isFinite(metrics.actualBoundingBoxDescent) ? metrics.actualBoundingBoxDescent : 0;
-      }
       width = Math.max(w, width);
       height += h;
     }
-    height -= size - labelActualAscent - labelActualDescent;
     width += padding;
     height += padding;
     return {
       width: width,
-      height: height,
-      labelActualAscent: labelActualAscent,
-      labelActualDescent: labelActualDescent
+      height: height
     };
   };
   BRp$9.calculateLabelAngle = function (ele, prefix) {
@@ -30258,7 +30243,7 @@ var printLayoutInfo;
       }
       var justification = r.getLabelJustification(ele);
       context.textAlign = justification;
-      context.textBaseline = 'alphabetic';
+      context.textBaseline = 'bottom';
     } else {
       var badLine = ele.element()._private.rscratch.badLine;
       var _label = ele.pstyle('label');
@@ -30387,7 +30372,6 @@ var printLayoutInfo;
       var pdash = prefix ? prefix + '-' : '';
       var textW = getPrefixedProperty(rscratch, 'labelWidth', prefix);
       var textH = getPrefixedProperty(rscratch, 'labelHeight', prefix);
-      var labelActualDescent = getPrefixedProperty(rscratch, 'labelActualDescent', prefix);
       var marginX = ele.pstyle(pdash + 'text-margin-x').pfValue;
       var marginY = ele.pstyle(pdash + 'text-margin-y').pfValue;
       var isEdge = ele.isEdge();
@@ -30511,7 +30495,6 @@ var printLayoutInfo;
       if (lineWidth > 0) {
         context.lineWidth = lineWidth;
       }
-      textY -= labelActualDescent;
       if (ele.pstyle('text-wrap').value === 'wrap') {
         var lines = getPrefixedProperty(rscratch, 'labelWrapCachedLines', prefix);
         var lineHeight = getPrefixedProperty(rscratch, 'labelLineHeight', prefix);
