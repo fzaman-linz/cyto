@@ -11111,7 +11111,6 @@
   var position = elesfn$c;
 
   var fn$3, elesfn$b;
-  var BBOX_MARGIN_ERROR = 2;
   fn$3 = elesfn$b = {};
   elesfn$b.renderedBoundingBox = function (options) {
     var bb = this.boundingBox(options);
@@ -11372,8 +11371,8 @@
       var borderWidth = ele.pstyle('text-border-width').pfValue;
       var halfBorderWidth = borderWidth / 2;
       var padding = ele.pstyle('text-background-padding').pfValue;
-      var marginOfErrorX = BBOX_MARGIN_ERROR; // expand to work around browser dimension inaccuracies
-      var marginOfErrorY = BBOX_MARGIN_ERROR; // expand to work around browser dimension inaccuracies
+      var marginOfErrorX = ele.pstyle('bbox-margin-error-x').pfValue; // expand to work around browser dimension inaccuracies
+      var marginOfErrorY = ele.pstyle('bbox-margin-error-y').pfValue; // expand to work around browser dimension inaccuracies
 
       var lh = labelHeight;
       var lw = labelWidth;
@@ -17445,6 +17444,9 @@
       justification: {
         enums: ['left', 'center', 'right', 'auto']
       },
+      textMetrics: {
+        enums: ['default', 'actual']
+      },
       text: {
         string: true
       },
@@ -17638,6 +17640,14 @@
       triggersBounds: diff.any
     }];
     var labelDimensions = [{
+      name: 'bbox-margin-error-x',
+      type: t.size,
+      triggersBounds: diff.any
+    }, {
+      name: 'bbox-margin-error-y',
+      type: t.size,
+      triggersBounds: diff.any
+    }, {
       name: 'font-family',
       type: t.fontFamily,
       triggersBounds: diff.any
@@ -17726,6 +17736,9 @@
     }, {
       name: 'text-justification',
       type: t.justification
+    }, {
+      name: 'text-metrics',
+      type: t.textMetrics
     }, {
       name: 'box-select-labels',
       type: t.bool,
@@ -18464,11 +18477,14 @@
       'underlay-padding': 10,
       'underlay-shape': 'round-rectangle',
       'underlay-corner-radius': 'auto',
+      'text-metrics': 'default',
       'transition-property': 'none',
       'transition-duration': 0,
       'transition-delay': 0,
       'transition-timing-function': 'linear',
       'box-select-labels': 'no',
+      'bbox-margin-error-x': 2,
+      'bbox-margin-error-y': 2,
       // node props
       'background-blacken': 0,
       'background-color': '#999',
@@ -25231,6 +25247,7 @@ var printLayoutInfo;
     var size = ele.pstyle('font-size').pfValue;
     var family = ele.pstyle('font-family').strValue;
     var weight = ele.pstyle('font-weight').strValue;
+    var textMetrics = ele.pstyle('text-metrics').strValue || 'default';
     var canvas = this.labelCalcCanvas;
     var c2d = this.labelCalcCanvasContext;
     if (!canvas) {
@@ -25256,16 +25273,20 @@ var printLayoutInfo;
       var metrics = c2d.measureText(line);
       var w = Math.ceil(metrics.width);
       var h = size;
-      if (i === 0) {
-        labelActualAscent = Number.isFinite(metrics.actualBoundingBoxAscent) ? metrics.actualBoundingBoxAscent : size;
-      }
-      if (i === lineCount - 1) {
-        labelActualDescent = Number.isFinite(metrics.actualBoundingBoxDescent) ? metrics.actualBoundingBoxDescent : 0;
+      if (textMetrics === 'actual') {
+        if (i === 0) {
+          labelActualAscent = metrics.actualBoundingBoxAscent;
+        }
+        if (i === lineCount - 1) {
+          labelActualDescent = metrics.actualBoundingBoxDescent;
+        }
       }
       width = Math.max(w, width);
       height += h;
     }
-    height -= size - labelActualAscent - labelActualDescent;
+    if (textMetrics === 'actual') {
+      height -= size - labelActualAscent - labelActualDescent;
+    }
     width += padding;
     height += padding;
     return {
@@ -30257,8 +30278,9 @@ var printLayoutInfo;
         return;
       }
       var justification = r.getLabelJustification(ele);
+      var isTextMetricsActual = ele.pstyle('text-metrics').strValue === 'actual';
       context.textAlign = justification;
-      context.textBaseline = 'alphabetic';
+      context.textBaseline = isTextMetricsActual ? 'alphabetic' : 'bottom';
     } else {
       var badLine = ele.element()._private.rscratch.badLine;
       var _label = ele.pstyle('label');
